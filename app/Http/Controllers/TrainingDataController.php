@@ -46,9 +46,16 @@ class TrainingDataController extends Controller
      * @param  \App\TrainingData  $trainingData
      * @return \Illuminate\Http\Response
      */
-    public function show(TrainingData $trainingData)
+    public function show(TrainingData $trainingData, $id)
     {
-        return view('trainingDataDetail')->with('training_data', $trainingData);
+        $training_data = TrainingData::findOrFail($id);
+        $file = fopen($training_data->csv_path, 'r');
+        while ($data = fgetcsv($file)) { //每次读取CSV里面的一行内容
+            //print_r($data); //此为一个数组，要获得每一个数据，访问数组下标即可
+            $csv[] = $data;
+        }
+        fclose($file);
+        return view('trainingDataDetail')->with(['training_data' => $training_data, 'csv' => $csv]);
     }
 
     /**
@@ -95,15 +102,15 @@ class TrainingDataController extends Controller
             $device->save();
             return 'success';
         } elseif ($request->header == 'check') {
-            return $device->register_status;
+            return $device->register_status ? 'yes' : 'no';
         } elseif ($request->header == 'training') {
-            if ($request->status == 'start')
-            {
+            if ($request->status == 'start') {
                 $csv_folder_path = "csv/user_" . $device->user_id . "/";
                 $csv_file_name = date("Y-m-d-G-i", time()) . ".csv";
 
-                if (!is_dir($csv_folder_path))
+                if (!is_dir($csv_folder_path)) {
                     mkdir($csv_folder_path, 0777, true);
+                }
 
                 $training_data = new TrainingData;
                 $training_data->user_id = $device->user_id;
@@ -113,23 +120,35 @@ class TrainingDataController extends Controller
                 $training_data->start_time = time();
                 $training_data->finished = 0;
                 $training_data->save();
+
+                $csv_file_path = $training_data->csv_path;
+
+                $timestamp = $request->input('timestamp');
+    
+                $header = array("Timestamp", "Finger1", "Finger2", "Finger3", "Finger4", "Finger5");
+                $fp = fopen($csv_file_path, 'a');
+                fputcsv($fp, $header);
+                fclose($fp);
+
                 return $training_data->id;
-            }
-            else if ($request->status == 'end')
-            {
+                
+            } elseif ($request->status == 'end') {
                 $training_data = TrainingData::findOrFail($request->input('data-id'));
                 $training_data->end_time = time();
                 $training_data->duration_time = date("i:s", $training_data->end_time - $training_data->start_time);
                 $training_data->finished = 1;
                 $training_data->save();
                 return "success";
-            }
-            else if ($request->status == 'doing')
-            {
+            } elseif ($request->status == 'doing') {
                 $training_data = TrainingData::findOrFail($request->input('data-id'));
                 $csv_file_path = $training_data->csv_path;
 
                 $timestamp = $request->input('timestamp');
+                // $finger1 = intval($request->input('finger1'))/100.0;
+                // $finger2 = intval($request->input('finger2'))/100.0;
+                // $finger3 = intval($request->input('finger3'))/100.0;
+                // $finger4 = intval($request->input('finger4'))/100.0;
+                // $finger5 = intval($request->input('finger5'))/100.0;
                 $finger1 = $request->input('finger1');
                 $finger2 = $request->input('finger2');
                 $finger3 = $request->input('finger3');
@@ -143,9 +162,9 @@ class TrainingDataController extends Controller
                 fputcsv($fp, $list);
                 fclose($fp);
                 return "success";
-            }
-            else
+            } else {
                 return "failed";
+            }
         }
     }
 }

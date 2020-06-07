@@ -111,7 +111,7 @@ $dt = Carbon::now();
                                     @else
                                     <td> On going... </td>
                                     @endif
-                                    <td> <a href="{{ action('TrainingDataController@show', ['training_datum' => $training_dat]) }}"> View report </a> </td>
+                                    <td> <a href="{{ action('TrainingDataController@show', ['training_datum' => $training_dat, 'id' => $training_dat->id]) }}"> View report </a> </td>
                                 </tr>
                             </tbody>
                         @endforeach
